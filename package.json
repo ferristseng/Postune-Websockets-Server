@@ -1,0 +1,17 @@
+{
+  "name": "ferris-websockets",
+  "author": "Ferris Tseng <ferristseng@gmail.com>",
+  "description": "A simple websocket / redis server",
+  "version": "0.0.1-6",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "redis": "0.8.1",
+    "socket.io": "0.9.10"
+  },
+  "subdomain": "ferris",
+  "engines": {
+    "node": ">=0.6"
+  }
+}
