@@ -16,16 +16,24 @@ if(settings.env == "production") {
 io.sockets.on('connection', function(socket) {
 	// On New User
 	socket.on('new user', function(data) {
+		// Set room
 		socket.room = 'station ' + data.station_id
+		// Join
 		socket.join(socket.room);
-		console.log("New user connected on '" + socket.room + "'!");
+		// Log
 		console.log("Now [" + io.sockets.clients(socket.room).length + "] users connected to " + socket.room);
+		// Emit
+		io.sockets.in(socket.room).emit('update user count', io.sockets.clients(socket.room).length);
 	});
 
 	// On Disconnect
 	socket.on('disconnect', function() {
+		// Leave
 		socket.leave(socket.room);
+		// Log
 		console.log("Now [" + io.sockets.clients(socket.room).length + "] users connected to " + socket.room);
+		// Emit
+		io.sockets.in(socket.room).emit('update user count', io.sockets.clients(socket.room).length);
 	});
 });
 
