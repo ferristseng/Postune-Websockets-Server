@@ -1,8 +1,8 @@
 {
   "name": "ferris-websockets",
   "author": "Ferris Tseng <ferristseng@gmail.com>",
-  "description": "A simple websocket / redis server",
-  "version": "0.0.1-6",
+  "description": "A websockets server for Postune. http://postune.com/",
+  "version": "0.0.1-12",
   "scripts": {
     "start": "node app.js"
   },
