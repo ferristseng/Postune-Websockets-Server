@@ -1,10 +1,14 @@
 var settings = require('./config').Config,
-		app = require('http').createServer(),
+		app = require('http').createServer(function(req, res) { 
+			res.writeHead(200, {'Content-Type': 'text/html'});
+    	res.end('<html><head><title>Postune Websockets</title></head><body><h3>Connected to Postune\'s websocket server!</h3></body></html>');
+		}),
 		redis = require("redis"),
 		pubsub = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check : true }),
 		client = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check: true }),  
 		io = require('socket.io').listen(app, { log: false }),
-		Message = require('./models/message');
+		Message = require('./models/message'),
+		Song = require('./models/song');
 
 // Error Handling for redis
 client.on("error", function(error) {
@@ -38,7 +42,7 @@ io.sockets.on('connection', function(socket) {
 		}
 		client.get(data.station + ' now playing', function(error, data) {
 			if(data != null && !error) {
-				socket.emit('song play', JSON.parse(data));
+				socket.emit('play song', JSON.parse(data));
 			}
 		});
 	});
@@ -62,7 +66,8 @@ io.sockets.on('connection', function(socket) {
 // Redis
 // Have client listen for new messages
 pubsub.on("message", function(channel, message) {
-	var json = JSON.parse(message);
+	var json = JSON.parse(message),
+			song = new Song(json.song);
 
 	printSeparator();
 	console.log("Received on " + channel);
@@ -72,10 +77,10 @@ pubsub.on("message", function(channel, message) {
 	console.log("Emitting to station " + json.station)
 	printSeparator();
 
-	setPlaying(json.station, json.song);
+	setPlaying(json.station, song);
 
 	// Emit Received Song Data
-	io.sockets.in('station ' + json.station).emit("new song", json.song);
+	io.sockets.in('station ' + json.station).emit("play song", song);
 	io.sockets.in('station ' + json.station).emit("chat message", new Message("notification", json.user + " started playing a song."));
 });
 
@@ -94,6 +99,6 @@ function printSeparator() {
 }
 
 function setPlaying(channel, song) {
-	client.set(channel + " now playing", JSON.stringify({ time: ((new Date()).getTime()), song: song }), redis.print);
+	client.set(channel + " now playing", song.stringify());
 }
 
