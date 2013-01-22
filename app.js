@@ -1,8 +1,5 @@
 var settings = require('./config').Config,
-		app = require('http').createServer(function(req, res) { 
-			res.writeHead(200, {'Content-Type': 'text/html'});
-    	res.end('<html><head><title>Postune Websockets</title></head><body><h3>Connected to Postune\'s websocket server!</h3></body></html>');
-		}),
+		app = require('http').createServer(),
 		redis = require("redis"),
 		pubsub = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check : true }),
 		client = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check: true }),  
@@ -15,31 +12,43 @@ client.on("error", function(error) {
 	console.log("Error: [" + error + "]");
 });
 
-pubsub.on("error", function(error) {
-	console.log("Error: [" + error + "]");
-});
-
 // Authorize both redis clients
 if(settings.redis.auth != "") {
 	pubsub.auth(settings.redis.auth);
 	client.auth(settings.redis.auth);
 }
 
-// Socket.io
+// ==================================
+// [Socket.io]
+// - New connections
+// - Disconnects
+// - New chat messages
+// ==================================
+
 // Have socket io listen for new connections
 io.sockets.on('connection', function(socket) {
 	// On New User
 	socket.on('new user', function(data) {
 		// Set room and user
-		socket.room = 'station ' + data.station;
+		socket.room = data.station;
 		socket.user = data.user;
+
 		// Join
 		socket.join(socket.room);
+
+		// ===
+		// TODO: Figure out how to handle station ONLINE attribute
+		// ---
+		client.sadd(socket.room + ' users', data.user);
+		client.sadd('online stations', data.station);
+
 		// Emit
 		io.sockets.in(socket.room).emit('update user count', io.sockets.clients(socket.room).length);
 		if(data.user != "") {
 			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user + " has entered chat.", "Admin"));
 		}
+
+		// Get the most recently played song for the user that joined
 		client.get(data.station + ' now playing', function(error, data) {
 			if(data != null && !error) {
 				socket.emit('play song', JSON.parse(data));
@@ -51,10 +60,21 @@ io.sockets.on('connection', function(socket) {
 	socket.on('disconnect', function() {
 		// Leave
 		socket.leave(socket.room);
+		var count = io.sockets.clients(socket.room).length;
+
 		// Emit
-		io.sockets.in(socket.room).emit('update user count', io.sockets.clients(socket.room).length);
+		io.sockets.in(socket.room).emit('update user count', count);
 		if(socket.user != "") {
 			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user + " has disconnect from chat.", "Admin"));
+		}
+
+		// ====
+		// TODO: Figure out how to handle station ONLINE attribute
+		// ----
+		client.srem(socket.room + ' users', socket.user);
+
+		if(count === 0) {
+			client.srem('online stations', socket.room);
 		}
 	});
 
@@ -63,7 +83,14 @@ io.sockets.on('connection', function(socket) {
 	});
 });
 
-// Redis
+// ==================================
+// [REDIS] Pub / Sub
+// ==================================
+// On error handler for redis pub/sub
+pubsub.on("error", function(error) {
+	console.log("Error: [" + error + "]");
+});
+
 // Have client listen for new messages
 pubsub.on("message", function(channel, message) {
 	var json = JSON.parse(message),
@@ -88,10 +115,7 @@ pubsub.on("message", function(channel, message) {
 pubsub.subscribe("new song");
 
 // Start the server
-app.listen(settings.port, settings.port);
-
-console.log('Server running at http://' + settings.host + ':' + settings.port + '/');
-console.log('Running in ' + settings.env + ' mode');
+app.listen(settings.port, settings.host);
 
 // Functions
 function printSeparator() {
@@ -100,5 +124,6 @@ function printSeparator() {
 
 function setPlaying(channel, song) {
 	client.set(channel + " now playing", song.stringify());
+	client.expire(channel + " now playing", 3600);
 }
 
