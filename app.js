@@ -1,22 +1,10 @@
 var settings = require('./config').Config,
 		app = require('http').createServer(),
-		redis = require("redis"),
-		pubsub = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check : true }),
-		client = redis.createClient(settings.redis.port, settings.redis.host, { no_ready_check: true }),  
+		pubsub = require('./initializers/pubsub'),
+		client = require('./initializers/redis'),  
 		io = require('socket.io').listen(app, { log: false }),
 		Message = require('./models/message'),
 		Song = require('./models/song');
-
-// Error Handling for redis
-client.on("error", function(error) {
-	console.log("Error: [" + error + "]");
-});
-
-// Authorize both redis clients
-if(settings.redis.auth != "") {
-	pubsub.auth(settings.redis.auth);
-	client.auth(settings.redis.auth);
-}
 
 // ==================================
 // [Socket.io]
@@ -85,12 +73,7 @@ io.sockets.on('connection', function(socket) {
 
 // ==================================
 // [REDIS] Pub / Sub
-// ==================================
-// On error handler for redis pub/sub
-pubsub.on("error", function(error) {
-	console.log("Error: [" + error + "]");
-});
-
+// ==================================do
 // Have client listen for new messages
 pubsub.on("message", function(channel, message) {
 	var json = JSON.parse(message),
