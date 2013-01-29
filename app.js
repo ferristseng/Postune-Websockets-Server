@@ -107,8 +107,8 @@ pubsub.on("message", function(channel, message) {
 	setPlaying(json.station, song);
 
 	// Emit Received Song Data
-	io.sockets.in('station ' + json.station).emit("play song", song);
-	io.sockets.in('station ' + json.station).emit("chat message", new Message("notification", json.user + " started playing a song."));
+	io.sockets.in(json.station).emit("play song", song);
+	io.sockets.in(json.station).emit("chat message", new Message("notification", json.user + " started playing a song."));
 });
 
 // Subscribe redis client to channel 'new posts'
