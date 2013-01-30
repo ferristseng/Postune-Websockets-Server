@@ -17,7 +17,16 @@ var settings = require('./config').Config,
 
 // Have socket io listen for new connections
 io.sockets.on('connection', function(socket) {
-	// On New User
+	// =============================
+	// [Socket.io] - [ON CONNECTION]
+	// SET user
+	// SET station
+	// ADD user to station's active members
+	// ADD station to list of online stations
+	// UPDATE the count of users in the stations
+	// BROADCAST the new user count and a message notifying other users about the connection
+	// EMIT the now playing data to the new user
+	// =============================
 	socket.on('new user', function(data) {
 		var station = new Station(data.station),
 				user = new User(data.user);
@@ -35,8 +44,11 @@ io.sockets.on('connection', function(socket) {
 		// ---
 		client.sadd('online stations', station.room());
 
+		// Update User Count
+		station.updateUserCount(io.sockets.clients(station.room()).length);
+
 		// Emit
-		io.sockets.in(station.room()).emit('update user count', io.sockets.clients(station.room()).length);
+		io.sockets.in(station.room()).emit('update user count', station.users);
 		if(user.permalink != "") {
 			io.sockets.in(station.room()).emit('chat message', new Message("notification", user.link() + " has entered chat.", "Admin"));
 		}
@@ -45,14 +57,16 @@ io.sockets.on('connection', function(socket) {
 		station.getPlaying(function(data) { socket.emit('play song', data) });
 	});
 
-	// On Disconnect
 	socket.on('disconnect', function() {
+		var station = new Station(socket.room);
+		
 		// Leave
 		socket.leave(socket.room);
-		var count = io.sockets.clients(socket.room).length;
+		
+		station.updateUserCount(io.sockets.clients(socket.room).length);
 
 		// Emit
-		io.sockets.in(socket.room).emit('update user count', count);
+		io.sockets.in(socket.room).emit('update user count', station.users);
 		if(socket.user != "") {
 			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user.link() + " has disconnect from chat.", "Admin"));
 		}
@@ -62,7 +76,7 @@ io.sockets.on('connection', function(socket) {
 		// ----
 		client.srem(socket.room + ' users', socket.user);
 
-		if(count === 0) {
+		if(station.users === 0) {
 			client.srem('online stations', socket.room);
 		}
 	});

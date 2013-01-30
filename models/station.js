@@ -26,12 +26,10 @@ var Station = function(permalink) {
 		});
 	}
 
-	this.incrUsers = function() {
-
-	}
-
-	this.decrUsers = function() {
-
+	this.updateUserCount = function(count) {
+		console.log("Here!");
+		client.hset(this.room(), "users", count);
+		this.users = count;
 	}
 
 	this.addUser = function(user) {
