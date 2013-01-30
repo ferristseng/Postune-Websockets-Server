@@ -4,7 +4,8 @@ var settings = require('./config').Config,
 		client = require('./initializers/redis'),  
 		io = require('socket.io').listen(app, { log: false }),
 		Message = require('./models/message'),
-		Song = require('./models/song');
+		Song = require('./models/song'),
+		Station = require('./models/station');
 
 // ==================================
 // [Socket.io]
@@ -17,31 +18,29 @@ var settings = require('./config').Config,
 io.sockets.on('connection', function(socket) {
 	// On New User
 	socket.on('new user', function(data) {
+		var station = new Station(data.station);
+
 		// Set room and user
-		socket.room = data.station;
+		socket.room = station.room();
 		socket.user = data.user;
 
 		// Join
-		socket.join(socket.room);
+		socket.join(station.room());
 
 		// ===
 		// TODO: Figure out how to handle station ONLINE attribute
 		// ---
 		client.sadd(socket.room + ' users', data.user);
-		client.sadd('online stations', data.station);
+		client.sadd('online stations', station.room());
 
 		// Emit
-		io.sockets.in(socket.room).emit('update user count', io.sockets.clients(socket.room).length);
+		io.sockets.in(station.room()).emit('update user count', io.sockets.clients(station.room()).length);
 		if(data.user != "") {
-			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user + " has entered chat.", "Admin"));
+			io.sockets.in(station.room()).emit('chat message', new Message("notification", socket.user + " has entered chat.", "Admin"));
 		}
 
 		// Get the most recently played song for the user that joined
-		client.get(data.station + ' now playing', function(error, data) {
-			if(data != null && !error) {
-				socket.emit('play song', JSON.parse(data));
-			}
-		});
+		station.getPlaying(function(data) { socket.emit('play song', data) });
 	});
 
 	// On Disconnect
@@ -77,21 +76,13 @@ io.sockets.on('connection', function(socket) {
 // Have client listen for new messages
 pubsub.on("message", function(channel, message) {
 	var json = JSON.parse(message),
-			song = new Song(json.song);
+			station = new Station(json.station);
 
-	printSeparator();
-	console.log("Received on " + channel);
-	printSeparator();
-	console.log(json);
-	printSeparator();
-	console.log("Emitting to station " + json.station)
-	printSeparator();
-
-	setPlaying(json.station, song);
+	station.setPlaying(json.song);
 
 	// Emit Received Song Data
-	io.sockets.in(json.station).emit("play song", song);
-	io.sockets.in(json.station).emit("chat message", new Message("notification", json.user + " started playing a song."));
+	io.sockets.in(station.room()).emit("play song", station.playing);
+	io.sockets.in(station.room()).emit("chat message", new Message("notification", json.user + " started playing a song."));
 });
 
 // Subscribe redis client to channel 'new posts'
@@ -99,14 +90,3 @@ pubsub.subscribe("new song");
 
 // Start the server
 app.listen(settings.port, settings.host);
-
-// Functions
-function printSeparator() {
-	console.log("======================================");
-}
-
-function setPlaying(channel, song) {
-	client.set(channel + " now playing", song.stringify());
-	client.expire(channel + " now playing", 3600);
-}
-

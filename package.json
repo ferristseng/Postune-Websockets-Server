@@ -2,15 +2,11 @@
   "name": "ferris-websockets",
   "author": "Ferris Tseng <ferristseng@gmail.com>",
   "description": "A websockets server for Postune. http://postune.com/",
-  "version": "0.0.1-12",
-  "scripts": {
-    "start": "node app.js"
-  },
+  "version": "0.1.0",
   "dependencies": {
     "redis": "0.8.1",
     "socket.io": "0.9.10"
   },
-  "subdomain": "ferris",
   "engines": {
     "node": ">=0.6"
   }
