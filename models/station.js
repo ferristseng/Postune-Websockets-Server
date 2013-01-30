@@ -4,7 +4,6 @@ var client = require('../initializers/redis'),
 var Station = function(permalink) {
 	this.permalink = permalink;
 
-	this.queue = [];
 	this.playing;
 
 	this.users = 0;
@@ -33,6 +32,10 @@ var Station = function(permalink) {
 
 	this.decrUsers = function() {
 
+	}
+
+	this.addUser = function(user) {
+		client.sadd(this.room() + ' users', user.permalink);
 	}
 
 	this.print = function() {

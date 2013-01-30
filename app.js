@@ -5,7 +5,8 @@ var settings = require('./config').Config,
 		io = require('socket.io').listen(app, { log: false }),
 		Message = require('./models/message'),
 		Song = require('./models/song'),
-		Station = require('./models/station');
+		Station = require('./models/station'),
+		User = require('./models/user');
 
 // ==================================
 // [Socket.io]
@@ -18,25 +19,26 @@ var settings = require('./config').Config,
 io.sockets.on('connection', function(socket) {
 	// On New User
 	socket.on('new user', function(data) {
-		var station = new Station(data.station);
+		var station = new Station(data.station),
+				user = new User(data.user);
 
 		// Set room and user
 		socket.room = station.room();
-		socket.user = data.user;
+		socket.user = user;
 
 		// Join
 		socket.join(station.room());
+		station.addUser(user);
 
 		// ===
 		// TODO: Figure out how to handle station ONLINE attribute
 		// ---
-		client.sadd(socket.room + ' users', data.user);
 		client.sadd('online stations', station.room());
 
 		// Emit
 		io.sockets.in(station.room()).emit('update user count', io.sockets.clients(station.room()).length);
-		if(data.user != "") {
-			io.sockets.in(station.room()).emit('chat message', new Message("notification", socket.user + " has entered chat.", "Admin"));
+		if(user.permalink != "") {
+			io.sockets.in(station.room()).emit('chat message', new Message("notification", user.link() + " has entered chat.", "Admin"));
 		}
 
 		// Get the most recently played song for the user that joined
@@ -52,7 +54,7 @@ io.sockets.on('connection', function(socket) {
 		// Emit
 		io.sockets.in(socket.room).emit('update user count', count);
 		if(socket.user != "") {
-			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user + " has disconnect from chat.", "Admin"));
+			io.sockets.in(socket.room).emit('chat message', new Message("notification", socket.user.link() + " has disconnect from chat.", "Admin"));
 		}
 
 		// ====
@@ -66,7 +68,7 @@ io.sockets.on('connection', function(socket) {
 	});
 
 	socket.on('new message', function(data) {
-		io.sockets.emit(socket.room).emit('chat message', new Message("user", data, socket.user));
+		io.sockets.emit(socket.room).emit('chat message', new Message("user", data, socket.user.link()));
 	});
 });
 
@@ -76,13 +78,14 @@ io.sockets.on('connection', function(socket) {
 // Have client listen for new messages
 pubsub.on("message", function(channel, message) {
 	var json = JSON.parse(message),
-			station = new Station(json.station);
+			station = new Station(json.station),
+			user = new User(json.user);
 
 	station.setPlaying(json.song);
 
 	// Emit Received Song Data
 	io.sockets.in(station.room()).emit("play song", station.playing);
-	io.sockets.in(station.room()).emit("chat message", new Message("notification", json.user + " started playing a song."));
+	io.sockets.in(station.room()).emit("chat message", new Message("notification", user.link() + " started playing a song."));
 });
 
 // Subscribe redis client to channel 'new posts'
