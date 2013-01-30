@@ -1,5 +1,6 @@
 var Message = function(type, text, user) {
 	this.type = type;
+
 	this.content = {
 		user: user,
 		text: text,

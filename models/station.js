@@ -27,7 +27,6 @@ var Station = function(permalink) {
 	}
 
 	this.updateUserCount = function(count) {
-		console.log("Here!");
 		client.hset(this.room(), "users", count);
 		this.users = count;
 	}

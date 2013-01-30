@@ -4,7 +4,7 @@ var User = function(user) {
 	this.color = user.color;
 
 	this.link = function() {
-		return "<a href='" + this.permalink + "'>" + this.name + "</a>";
+		return "<a href='" + this.permalink + "' style='color: " + this.color + "' class='user'>" + this.name + "</a>";
 	}
 
 	this.stringify = function() {
